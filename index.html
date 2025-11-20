@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Keyboard Prototype</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        #output {
+            width: 1000px;
+            height: 80px;
+            border: 2px solid #aaa;
+            margin-bottom: 20px;
+            padding: 10px;
+            font-size: 28px;
+        }
+
+        .keyboard {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+            /* vertical spacing */
+        }
+
+        .key {
+            width: 90px;
+            /* smaller key size */
+            height: 70px;
+            background: #eee;
+            border: 1px solid #aaa;
+            border-radius: 6px;
+            margin: 30px;
+            /* generous spacing for overlays */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            /* slightly smaller font */
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            transition: none;
+            /* no animation */
+        }
+
+        .key.space {
+            width: 240px;
+            /* proportionally smaller spacebar */
+        }
+
+        .key:hover {
+            transform: none;
+            /* no hover effect */
+        }
+
+
+        /* Overlay letters flush against key borders */
+        /* Make keys a clear positioning context (you already have this) */
+
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .overlay-letter {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: pink;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            transition: none;
+            /* no hover animation */
+        }
+
+        .overlay-letter:hover {
+            transform: none;
+        }
+
+        .overlay-letter.top {
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -100%);
+        }
+
+        .overlay-letter.left {
+            top: 50%;
+            left: 0;
+            transform: translate(-100%, -50%);
+        }
+
+        .overlay-letter.right {
+            top: 50%;
+            left: 100%;
+            transform: translate(0, -50%);
+        }
+
+        .overlay-letter.bottom {
+            top: 100%;
+            left: 50%;
+            transform: translate(-50%, 0%);
+        }
+
+
+        .button {
+            margin: 5px;
+            padding: 10px 15px;
+            background-color: #ddd;
+            border: 1px solid #999;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .button:hover {
+            background-color: #ccc;
+        }
+
+        #results {
+            width: 1000px;
+            margin-top: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Keyboard Prototype</h2>
+
+    <div id="output"></div>
+
+    <div>
+        <button class="button" id="startBtn">Start Trial</button>
+        <button class="button" id="finishBtn">Finish Trial</button>
+    </div>
+
+    <div class="keyboard" id="keyboard"></div>
+
+    <div id="results"></div>
+
+    <script>
+        // ----------------- LAYOUT -----------------
+        const keyboardLayout = [
+            ["E", "C", "U", "P", "D", "A"],
+            ["N", "F", "B", "K", "QJXZ", "G"],
+            ["L", "R", "V", "W", "M", "H"],
+            ["I", "S", "SPACE", "Y", "T", "O"]
+        ];
+
+        // ----------------- OVERLAY MAPPING -----------------
+        const overlayPredictions = {
+            A: ["N", "R", "T", "L"], B: ["E", "R", "A", "O"], C: ["H", "O", "A", "E"],
+            D: ["E", "I", "A", "O"], E: ["R", "S", "N", "D"], F: ["R", "O", "A", "I"],
+            G: ["R", "A", "E", "U"], H: ["E", "A", "I", "O"], I: ["N", "T", "S", "C"],
+            J: ["U", "A", "O", "E"], K: ["E", "I", "A", "O"], L: ["E", "I", "A", "O"],
+            M: ["A", "E", "I", "O"], N: ["G", "D", "T", "C"], O: ["N", "R", "U", "L"],
+            P: ["R", "L", "A", "E"], Q: ["U"], R: ["E", "A", "I", "O"], S: ["T", "H", "E", "A"],
+            T: ["H", "R", "O", "E"], U: ["R", "N", "S", "T"], V: ["E", "I", "A", "O"], W: ["H", "A", "E", "O"],
+            X: ["T", "C", "A", "E"], Y: ["O", "E", "A", "I"], Z: ["E", "A", "I", "O"]
+        };
+        const qjxzOverlay = ["Q", "J", "X", "Z"];
+
+        // ----------------- TARGET SENTENCES -----------------
+        const targetSentences = [
+            "She packed twelve blue pens in her small bag.",
+            "Every bird sang sweet songs in the quiet dawn.",
+            "They watched clouds drift across the golden sky.",
+            "A clever mouse slipped past the sleepy cat.",
+            "Green leaves danced gently in the warm breeze.",
+            "He quickly wrote notes before the test began.",
+            "The tall man wore boots made of soft leather.",
+            "Old clocks ticked loudly in the silent room.",
+            "She smiled while sipping tea on the front porch.",
+            "We found a hidden path behind the old barn.",
+            "Sunlight streamed through cracks in the ceiling.",
+            "Dogs barked at shadows moving through the yard.",
+            "Rain tapped softly against the window glass.",
+            "Bright stars twinkled above the quiet valley.",
+            "He tied the package with ribbon and string.",
+            "A sudden breeze blew papers off the desk.",
+            "The curious child opened every single drawer.",
+            "Fresh apples fell from the heavy tree limbs.",
+            "The artist painted scenes from her memory.",
+            "They danced all night under the glowing moon."
+        ];
+
+        // ----------------- VARIABLES -----------------
+        let keystrokes = [];
+        let typed = "";
+        let trialActive = false;
+        let startTime = null;
+        let targetString = "";
+
+        // ----------------- BUILD KEYBOARD -----------------
+        const keyboardDiv = document.getElementById("keyboard");
+
+        keyboardLayout.forEach(row => {
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "row";
+
+            row.forEach(letter => {
+                const key = document.createElement("div");
+                key.className = "key";
+                key.textContent = letter;
+                if (letter === "SPACE") key.classList.add("space");
+
+                let overlay;
+
+                function showOverlay(lettersArr) {
+                    if (overlay) overlay.remove();
+
+                    overlay = document.createElement("div");
+                    overlay.className = "overlay";
+                    key.appendChild(overlay);
+
+                    const edgeClasses = ["top", "left", "right", "bottom"];
+
+                    lettersArr.forEach((l, i) => {
+                        const letterDiv = document.createElement("div");
+                        letterDiv.className = `overlay-letter ${edgeClasses[i] || "top"}`;
+                        letterDiv.textContent = l;
+
+                        letterDiv.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            recordKeystroke(l);
+                        });
+
+                        overlay.appendChild(letterDiv);
+                    });
+
+                    key.addEventListener("mouseleave", () => {
+                        if (overlay) overlay.remove();
+                    }, { once: true });
+                }
+
+
+                key.addEventListener("click", () => {
+                    if (letter === "QJXZ") {
+                        showOverlay(qjxzOverlay);
+                    } else if (letter === "SPACE") {
+                        recordKeystroke(" ");
+                    } else {
+                        const lettersArr = overlayPredictions[letter] || [];
+                        showOverlay(lettersArr);
+                        recordKeystroke(letter);
+                    }
+                });
+
+                rowDiv.appendChild(key);
+            });
+
+            keyboardDiv.appendChild(rowDiv);
+        });
+
+        // ----------------- RECORD KEYSTROKES -----------------
+        function recordKeystroke(letter) {
+            if (!trialActive) return;
+            if (!startTime) startTime = performance.now();
+            keystrokes.push({ letter, time: performance.now() });
+            typed += letter;
+            document.getElementById("output").textContent = typed;
+        }
+
+        // ----------------- START / FINISH -----------------
+        document.getElementById("startBtn").addEventListener("click", () => {
+            typed = "";
+            keystrokes = [];
+            trialActive = true;
+            startTime = null;
+            const randomIndex = Math.floor(Math.random() * targetSentences.length);
+            targetString = targetSentences[randomIndex];
+            document.getElementById("output").textContent = "";
+            document.getElementById("results").innerHTML = `<p><strong>Target Sentence:</strong> ${targetString}</p>`;
+        });
+
+        document.getElementById("finishBtn").addEventListener("click", () => {
+            trialActive = false;
+            if (keystrokes.length === 0) return;
+            const endTime = keystrokes[keystrokes.length - 1].time;
+            const durationMin = (endTime - startTime) / 60000;
+            const grossWPM = (typed.replace(/\s/g, "").length / 5) / durationMin;
+            const msd = levenshtein(typed.toUpperCase(), targetString.toUpperCase());
+            const resultHTML = `
+        <h3>Results</h3>
+        <p>Target: ${targetString}</p>
+        <p>Typed: ${typed}</p>
+        <p>WPM: ${grossWPM.toFixed(2)}</p>
+        <p>MSD: ${msd}</p>
+        <p>Duration (min): ${durationMin.toFixed(3)}</p>
+    `;
+            document.getElementById("results").innerHTML = resultHTML;
+            console.log({ keystrokes, typed, grossWPM, msd, duration: durationMin });
+        });
+
+        // ----------------- LEVENSHTEIN -----------------
+        function levenshtein(a, b) {
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    matrix[i][j] = b[i - 1] === a[j - 1]
+                        ? matrix[i - 1][j - 1]
+                        : Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + 1);
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+    </script>
+
+</body>
+
+</html>
