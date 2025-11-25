@@ -21,11 +21,18 @@
             width: 1200px;
             height: 80px;
             border: 2px solid #aaa;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
+            /* ↓↓ Was 20px — moved closer */
             padding: 10px;
             font-size: 28px;
             white-space: pre-wrap;
             word-wrap: break-word;
+        }
+
+        #shiftBtn {
+            margin-top: 5px;
+            /* optional: pulls it even closer */
+            margin-bottom: 20px;
         }
 
         .keyboard {
@@ -42,7 +49,6 @@
             margin-bottom: 70px;
             min-height: 100px;
             cursor: pointer;
-            /* So gaps can be clicked */
         }
 
         .key {
@@ -139,10 +145,6 @@
             text-align: center;
         }
 
-        .button:hover {
-            background-color: #ccc;
-        }
-
         #results {
             width: 1200px;
             margin-top: 15px;
@@ -156,6 +158,21 @@
             font-style: italic;
             color: #333;
         }
+
+        #shiftBtn {
+            width: 200px;
+            padding: 8px;
+            background: #ccc;
+            border: 1px solid #777;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        #shiftBtn.active {
+            background: #999;
+            color: white;
+        }
     </style>
 </head>
 
@@ -166,6 +183,8 @@
     <div id="output"></div>
     <div id="target"></div>
 
+    <button id="shiftBtn">Shift (OFF)</button>
+
     <div>
         <button class="button" id="startBtn">Start Trial</button>
         <button class="button" id="finishBtn">Finish Trial</button>
@@ -175,24 +194,34 @@
     <div class="keyboard" id="keyboard"></div>
 
     <script>
+        let isUpper = false;  // SHIFT STATE
+
+        document.getElementById("shiftBtn").addEventListener("click", () => {
+            isUpper = !isUpper;
+            document.getElementById("shiftBtn").classList.toggle("active", isUpper);
+            document.getElementById("shiftBtn").textContent = isUpper ? "Shift (ON)" : "Shift (OFF)";
+        });
+
         const keyboardLayout = [
-            ["E", "C", "U", "P", "D", "A"],
-            ["N", "F", "B", "K", "QJXZ", "G"],
-            ["L", "R", "V", "W", "M", "H"],
-            ["I", "S", "Y", "T", "O", "."]
+            ["e", "c", "u", "p", "d", "a"],
+            ["n", "f", "b", "k", "qjxz", "g"],
+            ["l", "r", "v", "w", "m", "h"],
+            ["i", "s", "y", "t", "o", "."]
         ];
 
         const overlayPredictions = {
-            A: ["N", "R", "T", "L"], B: ["E", "R", "A", "O"], C: ["H", "O", "A", "E"],
-            D: ["E", "I", "A", "O"], E: ["R", "S", "N", "D"], F: ["R", "O", "A", "I"],
-            G: ["R", "A", "E", "U"], H: ["E", "A", "I", "O"], I: ["N", "T", "S", "C"],
-            J: ["U", "A", "O", "E"], K: ["E", "I", "A", "O"], L: ["E", "I", "A", "O"],
-            M: ["A", "E", "I", "O"], N: ["G", "D", "T", "C"], O: ["N", "R", "U", "L"],
-            P: ["R", "L", "A", "E"], Q: ["U"], R: ["E", "A", "I", "O"], S: ["T", "H", "E", "A"],
-            T: ["H", "R", "O", "E"], U: ["R", "N", "S", "T"], V: ["E", "I", "A", "O"], W: ["H", "A", "E", "O"],
-            X: ["T", "C", "A", "E"], Y: ["O", "E", "A", "I"], Z: ["E", "A", "I", "O"]
+            a: ["n", "r", "t", "l"], b: ["e", "r", "a", "o"], c: ["h", "o", "a", "e"],
+            d: ["e", "i", "a", "o"], e: ["r", "s", "n", "d"], f: ["r", "o", "a", "i"],
+            g: ["r", "a", "e", "u"], h: ["e", "a", "i", "o"], i: ["n", "t", "s", "c"],
+            j: ["u", "a", "o", "e"], k: ["e", "i", "a", "o"], l: ["e", "i", "a", "o"],
+            m: ["a", "e", "i", "o"], n: ["g", "d", "t", "c"], o: ["n", "r", "u", "l"],
+            p: ["r", "l", "a", "e"], q: ["u"], r: ["e", "a", "i", "o"], s: ["t", "h", "e", "a"],
+            t: ["h", "r", "o", "e"], u: ["r", "n", "s", "t"], v: ["e", "i", "a", "o"],
+            w: ["h", "a", "e", "o"], x: ["t", "c", "a", "e"], y: ["o", "e", "a", "i"],
+            z: ["e", "a", "i", "o"]
         };
-        const qjxzOverlay = ["Q", "J", "X", "Z"];
+
+        const qjxz = ["q", "j", "x", "z"];
 
         const targetSentences = [
             "She packed twelve blue pens in her small bag.",
@@ -224,60 +253,63 @@
         let targetString = "";
 
         const keyboardDiv = document.getElementById("keyboard");
-        const targetDiv = document.getElementById("target");
+
+        function applyCase(letter) {
+            return isUpper ? letter.toUpperCase() : letter.toLowerCase();
+        }
 
         function recordKeystroke(letter) {
             if (!trialActive) return;
             if (!startTime) startTime = performance.now();
-            keystrokes.push({ letter, time: performance.now() });
-            typed += letter === " " ? "␣" : letter;
+
+            const outputLetter = letter === " " ? "␣" : applyCase(letter);
+
+            keystrokes.push({ letter: outputLetter, time: performance.now() });
+            typed += outputLetter;
+
             document.getElementById("output").textContent = typed;
         }
 
-        // Click in vertical gaps
-        keyboardDiv.addEventListener("click", (e) => {
-            if (!e.target.classList.contains("key") && !e.target.classList.contains("overlay-letter")) {
+        // space on click in gaps
+        keyboardDiv.addEventListener("click", e => {
+            if (!e.target.classList.contains("key") &&
+                !e.target.classList.contains("overlay-letter")) {
                 recordKeystroke(" ");
             }
         });
 
+        // --- BUILD KEYBOARD ---
         keyboardLayout.forEach(row => {
             const rowDiv = document.createElement("div");
             rowDiv.className = "row";
 
-            // Click in horizontal gaps
-            // rowDiv.addEventListener("click", (e) => {
-            //     if (!e.target.classList.contains("key")) {
-            //         recordKeystroke(" ");
-            //     }
-            // });
-
             row.forEach(letter => {
                 const key = document.createElement("div");
                 key.className = "key";
-                key.textContent = letter;
+                key.textContent = applyCase(letter);
 
                 let overlay;
-                function showOverlay(lettersArr) {
+
+                function showOverlay(arr) {
                     if (overlay) overlay.remove();
                     overlay = document.createElement("div");
                     overlay.className = "overlay";
                     key.appendChild(overlay);
-                    const edgeClasses = ["top", "left", "right", "bottom"];
-                    lettersArr.forEach((l, i) => {
-                        const letterDiv = document.createElement("div");
-                        letterDiv.className = `overlay-letter ${edgeClasses[i] || "top"}`;
-                        if (i === 0) letterDiv.classList.add("most-likely");
-                        letterDiv.textContent = l;
-                        letterDiv.addEventListener("click", (e) => {
+
+                    const pos = ["top", "left", "right", "bottom"];
+                    arr.forEach((l, i) => {
+                        const div = document.createElement("div");
+                        div.className = `overlay-letter ${pos[i] || "top"}`;
+                        if (i === 0) div.classList.add("most-likely");
+                        div.textContent = applyCase(l);
+                        div.addEventListener("click", e => {
                             e.stopPropagation();
                             recordKeystroke(l);
                         });
-                        overlay.appendChild(letterDiv);
+                        overlay.appendChild(div);
                     });
-                    key.addEventListener("mouseleave", () => {
-                        if (overlay) overlay.remove();
-                    }, { once: true });
+
+                    key.addEventListener("mouseleave", () => overlay.remove(), { once: true });
                 }
 
                 key.addEventListener("click", () => {
@@ -286,11 +318,11 @@
                         return;
                     }
 
-                    if (letter === "QJXZ") {
-                        showOverlay(qjxzOverlay);
+                    if (letter === "qjxz") {
+                        showOverlay(qjxz);
                     } else {
-                        const lettersArr = overlayPredictions[letter] || [];
-                        showOverlay(lettersArr);
+                        const preds = overlayPredictions[letter] || [];
+                        showOverlay(preds);
                         recordKeystroke(letter);
                     }
                 });
@@ -301,57 +333,69 @@
             keyboardDiv.appendChild(rowDiv);
         });
 
+        // START BUTTON
         document.getElementById("startBtn").addEventListener("click", () => {
             typed = "";
             keystrokes = [];
             trialActive = true;
             startTime = null;
 
-            const randomIndex = Math.floor(Math.random() * targetSentences.length);
-            targetString = targetSentences[randomIndex];
+            const i = Math.floor(Math.random() * targetSentences.length);
+            targetString = targetSentences[i];
 
             document.getElementById("output").textContent = "";
-            targetDiv.textContent = `Target: ${targetString}`;
+            document.getElementById("target").textContent = "Target: " + targetString;
 
             document.getElementById("startBtn").disabled = true;
             document.getElementById("results").innerHTML = "";
         });
 
+        // FINISH BUTTON
         document.getElementById("finishBtn").addEventListener("click", () => {
             trialActive = false;
-
             document.getElementById("startBtn").disabled = false;
 
             if (keystrokes.length === 0) return;
 
-            const endTime = keystrokes[keystrokes.length - 1].time;
-            const durationMin = (endTime - startTime) / 60000;
-            const grossWPM = (typed.replace(/␣/g, "").length / 5) / durationMin;
-            const msd = levenshtein(typed.replace(/␣/g, ""), targetString.replace(/\s/g, ""));
+            const end = keystrokes[keystrokes.length - 1].time;
+            const durationMin = (end - startTime) / 60000;
+
+            const typedClean = typed.replace(/␣/g, "");
+            const targetClean = targetString.replace(/\s/g, "");
+
+            const WPM = (typedClean.length / 5) / durationMin;
+
+            const MSD = levenshtein(typedClean, targetClean);
 
             document.getElementById("results").innerHTML = `
-                <h3>Results</h3>
-                <p>Target: ${targetString}</p>
-                <p>Typed: ${typed}</p>
-                <p>WPM: ${grossWPM.toFixed(2)}</p>
-                <p>MSD: ${msd}</p>
-                <p>Duration (min): ${durationMin.toFixed(3)}</p>
-                <p style="color:blue;"><strong>Trial finished!</strong></p>
-            `;
+        <h3>Results</h3>
+        <p>Target: ${targetString}</p>
+        <p>Typed: ${typed}</p>
+        <p>WPM: ${WPM.toFixed(2)}</p>
+        <p>MSD: ${MSD}</p>
+        <p>Duration (min): ${durationMin.toFixed(3)}</p>
+        <p style="color:blue;"><strong>Trial finished!</strong></p>
+    `;
         });
 
+        // LEVENSHTEIN
         function levenshtein(a, b) {
-            const matrix = [];
-            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            const m = [];
+            for (let i = 0; i <= b.length; i++) m[i] = [i];
+            for (let j = 0; j <= a.length; j++) m[0][j] = j;
+
             for (let i = 1; i <= b.length; i++) {
                 for (let j = 1; j <= a.length; j++) {
-                    matrix[i][j] = b[i - 1] === a[j - 1]
-                        ? matrix[i - 1][j - 1]
-                        : Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + 1);
+                    m[i][j] = b[i - 1] === a[j - 1]
+                        ? m[i - 1][j - 1]
+                        : Math.min(
+                            m[i - 1][j] + 1,
+                            m[i][j - 1] + 1,
+                            m[i - 1][j - 1] + 1
+                        );
                 }
             }
-            return matrix[b.length][a.length];
+            return m[b.length][a.length];
         }
     </script>
 
