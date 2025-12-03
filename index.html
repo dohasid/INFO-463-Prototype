@@ -45,11 +45,15 @@
 
         .row {
             display: flex;
-            justify-content: space-around;
+            justify-content: center;
+            /* keeps rows centered */
+            gap: 75px;
+            /* controls horizontal spacing */
             margin-bottom: 70px;
             min-height: 100px;
             cursor: pointer;
         }
+
 
         .key {
             width: 80px;
@@ -179,7 +183,9 @@
 <body>
 
     <h2>Keyboard Prototype</h2>
-
+    <p style="font-size:18px; color:#555; margin-bottom:15px;">
+        To insert a space, simply click on the whitespace area between the keys.
+    </p>
     <div id="output"></div>
     <div id="target"></div>
 
@@ -200,12 +206,14 @@
             isUpper = !isUpper;
             document.getElementById("shiftBtn").classList.toggle("active", isUpper);
             document.getElementById("shiftBtn").textContent = isUpper ? "Shift (ON)" : "Shift (OFF)";
+            updateKeyboardCase();   // <-- REFRESH KEYS HERE
         });
+
 
         const keyboardLayout = [
             ["e", "c", "u", "p", "d", "a"],
-            ["n", "f", "b", "k", "qjxz", "g"],
-            ["l", "r", "v", "w", "m", "h"],
+            ["h", "f", "b", "k", "qjxz", "g"],
+            ["l", "r", "v", "w", "m", "n"],
             ["i", "s", "y", "t", "o", "."]
         ];
 
@@ -258,6 +266,14 @@
             return isUpper ? letter.toUpperCase() : letter.toLowerCase();
         }
 
+        function updateKeyboardCase() {
+            document.querySelectorAll(".key").forEach(key => {
+                const letter = key.dataset.letter;
+                key.textContent = applyCase(letter);
+            });
+        }
+
+
         function recordKeystroke(letter) {
             if (!trialActive) return;
             if (!startTime) startTime = performance.now();
@@ -286,13 +302,16 @@
             row.forEach(letter => {
                 const key = document.createElement("div");
                 key.className = "key";
+                key.dataset.letter = letter;
                 key.textContent = applyCase(letter);
 
                 let overlay;
 
-                function showOverlay(arr) {
-                    if (overlay) overlay.remove();
-                    overlay = document.createElement("div");
+                function showOverlay(arr, key) {
+                    // Remove any existing overlays from other keys
+                    document.querySelectorAll(".overlay").forEach(o => o.remove());
+
+                    const overlay = document.createElement("div");
                     overlay.className = "overlay";
                     key.appendChild(overlay);
 
@@ -308,9 +327,8 @@
                         });
                         overlay.appendChild(div);
                     });
-
-                    key.addEventListener("mouseleave", () => overlay.remove(), { once: true });
                 }
+
 
                 key.addEventListener("click", () => {
                     if (letter === ".") {
@@ -319,10 +337,12 @@
                     }
 
                     if (letter === "qjxz") {
-                        showOverlay(qjxz);
+                        showOverlay(qjxz, key);
+
                     } else {
                         const preds = overlayPredictions[letter] || [];
-                        showOverlay(preds);
+                        showOverlay(preds, key);
+
                         recordKeystroke(letter);
                     }
                 });
