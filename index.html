@@ -380,11 +380,11 @@
             const end = keystrokes[keystrokes.length - 1].time;
             const durationMin = (end - startTime) / 60000;
 
-            const typedClean = typed.replace(/␣/g, "");
-            const targetClean = targetString.replace(/\s/g, "");
+            // ✅ KEEP spacing mistakes
+            const typedClean = typed.replace(/␣/g, " ");
+            const targetClean = targetString;
 
             const WPM = (typedClean.length / 5) / durationMin;
-
             const MSD = levenshtein(typedClean, targetClean);
 
             document.getElementById("results").innerHTML = `
